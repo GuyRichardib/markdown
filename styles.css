@@ -1,0 +1,86 @@
+.tools{
+    height: 35px;
+    background-image: linear-gradient(120deg, rgb(105, 104, 104), rgb(88, 88, 88));
+    box-shadow: 0px 2px 2px 1px;
+    border: 1px solid rgb(95, 95, 95);
+}
+.content{
+    display: flex;
+    height: 1100px;
+    margin-top: 1px;
+    
+
+
+}
+.textAreadiv{
+    height: 1100px;
+    width: 700px;
+    margin-right: 120px;
+    border: 1px solid rgb(129, 129, 129);
+    overflow: auto;
+
+}
+.textArea{
+    width: 100%;
+    height: 100%;
+    
+
+}
+.previewdiv{
+    height: 1100px;
+    width: 700px;
+    margin-left: 120px;
+    background-color: rgb(233, 232, 232);
+    border: 1px solid rgb(129, 129, 129);
+    overflow: auto;
+}
+.preview{
+    width: 100%;
+    height: 100%;
+}
+.button{
+    cursor: pointer;
+    height: 30px;
+    margin-right: 35px;
+    margin-top: 3px;
+    background-color: lightgreen;
+    border-radius: 5px;
+}
+.button:hover{
+    background-image: linear-gradient(120deg, rgb(145, 246, 145), rgb(124, 126, 124));
+}
+
+
+.result{
+    height: 20px;
+    width: 95px;
+    border-radius: 10px;
+    background-image: linear-gradient(120deg, rgb(228, 228, 228), rgb(129, 128, 128));
+    border: 1px solid black;
+    box-shadow: 0px 1px 1px 0px;
+    align-self: center;
+    text-align: -webkit-center;
+
+}
+
+.undo{
+    cursor: pointer;
+    height: 30px;
+    background-color: lightpink;
+    border-radius: 5px;
+}
+
+.undo:hover{
+    background-image: linear-gradient(120deg, rgb(250, 184, 184), rgb(236, 101, 101));
+}
+
+.redo{
+    cursor: pointer;
+    height: 30px;
+    background-color: lightslategrey;
+    border-radius: 5px;
+}
+
+.redo:hover{
+    background-image: linear-gradient(120deg, rgb(118, 121, 126), rgb(92, 94, 114));
+}
