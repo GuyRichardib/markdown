@@ -1,0 +1,53 @@
+name: Package Kindle Create async
+
+on:
+  push:
+    branches: [kpf-tooling-temp]
+    paths:
+      - '.github/workflows/package_kindle_create_async.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and start silent install without waiting
+        shell: pwsh
+        run: |
+          $installer = "$env:RUNNER_TEMP\KindleCreateInstaller.exe"
+          Invoke-WebRequest -Uri 'https://d2bzeorukaqrvt.cloudfront.net/KindleCreateInstaller.exe' -OutFile $installer
+          Write-Host "installer bytes: $((Get-Item $installer).Length)"
+          $p = Start-Process -FilePath $installer -ArgumentList '/S' -PassThru
+          Write-Host "installer pid=$($p.Id)"
+          Start-Sleep -Seconds 75
+          $roots = @($env:LOCALAPPDATA, $env:APPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ -and (Test-Path $_) }
+          $matches = @()
+          foreach ($root in $roots) {
+            $matches += Get-ChildItem $root -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'Kindle.*Create.*\.exe$|KindleCreate.*\.exe$' }
+          }
+          $matches = $matches | Sort-Object FullName -Unique
+          $matches | Select-Object FullName,Length | Format-Table -AutoSize
+          if (-not $matches) {
+            Get-Process | Where-Object { $_.ProcessName -match 'Kindle|Create' } | Select-Object ProcessName,Id,Path | Format-Table -AutoSize
+            throw 'Kindle Create executable not found after 75 seconds.'
+          }
+          $exe = $matches | Where-Object { $_.Name -match '^Kindle Create\.exe$|^KindleCreate\.exe$' } | Select-Object -First 1
+          if (-not $exe) { $exe = $matches | Select-Object -First 1 }
+          $dir = Split-Path $exe.FullName -Parent
+          Write-Host "Packaging installed directory: $dir"
+          New-Item -ItemType Directory -Force -Path "$PWD\kc_bundle" | Out-Null
+          Copy-Item "$dir\*" "$PWD\kc_bundle" -Recurse -Force
+          @("exe=$($exe.Name)","source=$dir", "localappdata=$env:LOCALAPPDATA") | Set-Content -Encoding UTF8 "$PWD\kc_bundle\bundle-info.txt"
+          Get-ChildItem "$PWD\kc_bundle" -Recurse -File | Measure-Object Length -Sum | Format-List Count,Sum
+          Get-Process | Where-Object { $_.ProcessName -match 'Kindle|Create' } | Stop-Process -Force -ErrorAction SilentlyContinue
+          Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kindle-create-installed-bundle
+          path: kc_bundle
+          retention-days: 7
+          compression-level: 9
