@@ -1,0 +1,62 @@
+name: Package Kindle Create tooling
+
+on:
+  push:
+    branches: [kpf-tooling-temp]
+    paths:
+      - '.github/workflows/package_kindle_create.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  package-kindle-create:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Kindle Create
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://d2bzeorukaqrvt.cloudfront.net/KindleCreateInstaller.exe' -OutFile "$env:RUNNER_TEMP\KindleCreateInstaller.exe"
+          Get-Item "$env:RUNNER_TEMP\KindleCreateInstaller.exe" | Format-List FullName,Length
+
+      - name: Install Kindle Create silently
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "$env:RUNNER_TEMP\KindleCreateInstaller.exe" -ArgumentList '/S' -Wait -PassThru
+          Write-Host "Installer exit code: $($p.ExitCode)"
+          Start-Sleep -Seconds 4
+          $roots = @($env:LOCALAPPDATA, $env:APPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ -and (Test-Path $_) }
+          $found = foreach ($root in $roots) {
+            Get-ChildItem $root -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^Kindle Create.*\.exe$|^KindleCreate.*\.exe$' } | Select-Object -First 20 FullName,Length
+          }
+          $found | Format-Table -AutoSize
+          if (-not $found) { throw 'Kindle Create executable not found after silent installation.' }
+
+      - name: Collect installation folder
+        shell: pwsh
+        run: |
+          $roots = @($env:LOCALAPPDATA, $env:APPDATA, $env:ProgramFiles, ${env:ProgramFiles(x86)}) | Where-Object { $_ -and (Test-Path $_) }
+          $exe = foreach ($root in $roots) {
+            Get-ChildItem $root -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^Kindle Create.*\.exe$|^KindleCreate.*\.exe$' } | Select-Object -First 1
+            if ($_) { break }
+          }
+          if (-not $exe) {
+            $exe = Get-ChildItem @($env:LOCALAPPDATA,$env:APPDATA) -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.Name -like '*.exe' -and $_.FullName -match 'Kindle Create' } | Select-Object -First 1
+          }
+          if (-not $exe) { throw 'No Kindle Create exe found for packaging.' }
+          $dir = Split-Path $exe.FullName -Parent
+          Write-Host "Packaging $dir"
+          New-Item -ItemType Directory -Force -Path "$PWD\kc_bundle" | Out-Null
+          Copy-Item "$dir\*" "$PWD\kc_bundle" -Recurse -Force
+          @("exe=$($exe.Name)","source=$dir") | Set-Content -Encoding UTF8 "$PWD\kc_bundle\bundle-info.txt"
+          Get-ChildItem "$PWD\kc_bundle" -Recurse -File | Measure-Object Length -Sum | Format-List Count,Sum
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kindle-create-tooling
+          path: kc_bundle
+          retention-days: 7
+          compression-level: 9
