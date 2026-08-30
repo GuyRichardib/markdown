@@ -1,0 +1,29 @@
+name: Download Kindle Create installer
+
+on:
+  push:
+    branches: [kpf-tooling-temp]
+    paths:
+      - '.github/workflows/download_kindle_create_installer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download official installer
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri 'https://d2bzeorukaqrvt.cloudfront.net/KindleCreateInstaller.exe' -OutFile "$PWD\KindleCreateInstaller.exe"
+          Get-FileHash "$PWD\KindleCreateInstaller.exe" -Algorithm SHA256 | Format-List
+          Get-Item "$PWD\KindleCreateInstaller.exe" | Format-List FullName,Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KindleCreateInstaller
+          path: KindleCreateInstaller.exe
+          retention-days: 7
+          compression-level: 0
