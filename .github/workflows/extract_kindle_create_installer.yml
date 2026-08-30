@@ -1,0 +1,35 @@
+name: Extract Kindle Create installer
+
+on:
+  push:
+    branches: [kpf-tooling-temp]
+    paths:
+      - '.github/workflows/extract_kindle_create_installer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  extract:
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and extract NSIS payload
+        shell: pwsh
+        run: |
+          $installer = "$PWD\KindleCreateInstaller.exe"
+          Invoke-WebRequest -Uri 'https://d2bzeorukaqrvt.cloudfront.net/KindleCreateInstaller.exe' -OutFile $installer
+          $seven = 'C:\Program Files\7-Zip\7z.exe'
+          if (-not (Test-Path $seven)) { $seven = (Get-Command 7z).Source }
+          New-Item -ItemType Directory -Force -Path "$PWD\kc_extract" | Out-Null
+          & $seven x -y "-o$PWD\kc_extract" $installer
+          Write-Host "7z exit=$LASTEXITCODE"
+          Get-ChildItem "$PWD\kc_extract" -Recurse -File | Where-Object { $_.Name -match 'Kindle|Create|\.exe$' } | Select-Object -First 100 FullName,Length | Format-Table -AutoSize
+          Get-ChildItem "$PWD\kc_extract" -Recurse -File | Measure-Object Length -Sum | Format-List Count,Sum
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kindle-create-nsis-extract
+          path: kc_extract
+          retention-days: 7
+          compression-level: 9
