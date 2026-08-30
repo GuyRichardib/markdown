@@ -1,0 +1,41 @@
+name: Package Kindle Previewer tooling
+on:
+  push:
+    branches: [kpf-tooling-temp]
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download official Kindle Previewer
+        shell: pwsh
+        run: Invoke-WebRequest -Uri 'https://d2bzeorukaqrvt.cloudfront.net/KindlePreviewerInstaller.exe' -OutFile "$env:RUNNER_TEMP\KindlePreviewerInstaller.exe"
+      - name: Install silently
+        shell: pwsh
+        run: |
+          Start-Process -FilePath "$env:RUNNER_TEMP\KindlePreviewerInstaller.exe" -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 5
+      - name: Inspect installation
+        shell: pwsh
+        run: |
+          $roots=@("$env:LOCALAPPDATA\Amazon\Kindle Previewer 3","$env:APPDATA\Amazon")
+          foreach($r in $roots){ if(Test-Path $r){ Write-Host "ROOT=$r"; Get-ChildItem $r -Recurse -File | Select-Object FullName,Length | Format-Table -AutoSize } }
+      - name: Collect installed application
+        shell: pwsh
+        run: |
+          $dst=Join-Path $PWD 'kindle-previewer-portable'
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+          $src="$env:LOCALAPPDATA\Amazon\Kindle Previewer 3"
+          if(-not (Test-Path $src)){ throw "Kindle Previewer installation directory not found: $src" }
+          Copy-Item "$src\*" $dst -Recurse -Force
+          Get-ChildItem $dst -Recurse -File | Where-Object { $_.Name -match 'EpubToKFX|kindlepreviewer|yj|coreprocessor|converter|kfx|kdf' } | Select-Object FullName,Length | Format-Table -AutoSize
+      - name: Upload tooling
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindle-previewer-3.106-tooling
+          path: kindle-previewer-portable/**
+          compression-level: 6
+          if-no-files-found: error
